@@ -23,6 +23,9 @@ import (
 const (
 	maxRetries    = 10
 	queryInterval = 2
+
+	clusterInfoCMName      = "cluster-info"
+	clusterInfoCMNamespace = "kube-system"
 )
 
 var logger = log.New(log.Writer(), "[adaptor/cloud/ibmcloud] ", log.LstdFlags|log.Lmsgprefix)
@@ -60,6 +63,19 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		}
 	} else {
 		return nil, fmt.Errorf("either an IAM API Key or Profile ID needs to be set")
+	}
+
+	cm, err := util.ConfigMap(context.TODO(), clusterInfoCMName, clusterInfoCMNamespace) // TODO: Probably won't have access to namespace
+	if err != nil {
+		logger.Printf("warning, could not find %s config map in %s namespace\ndue to: %v\n", clusterInfoCMName, clusterInfoCMNamespace, err)
+	}
+	clusterID, ok := cm["cluster_id"]
+	if ok {
+		config.ClusterID = clusterID
+
+		if config.PrimarySecurityGroupID == "" {
+			config.PrimarySecurityGroupID = "kube" + "-" + config.ClusterID // TODO: Fetch cluster type SG instead
+		}
 	}
 
 	nodeName, ok := os.LookupEnv("NODE_NAME")
