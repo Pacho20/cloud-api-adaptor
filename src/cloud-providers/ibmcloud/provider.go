@@ -41,8 +41,13 @@ type vpcV1 interface {
 	GetImageWithContext(ctx context.Context, getImageOptions *vpcv1.GetImageOptions) (*vpcv1.Image, *core.DetailedResponse, error)
 }
 
+type clusterV2 interface {
+	GetSecurityGroups(clusterID string) (result []securityGroup, response *core.DetailedResponse, err error)
+}
+
 type ibmcloudVPCProvider struct {
 	vpc           vpcV1
+	cluster       clusterV2
 	serviceConfig *Config
 }
 
@@ -63,6 +68,11 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		}
 	} else {
 		return nil, fmt.Errorf("either an IAM API Key or Profile ID needs to be set")
+	}
+
+	clusterV2, err := NewClusterV2Service(&ClusterOptions{Authenticator: authenticator})
+	if err != nil {
+		return nil, err
 	}
 
 	cm, err := util.ConfigMap(context.TODO(), clusterInfoCMName, clusterInfoCMNamespace) // TODO: Probably won't have access to namespace
@@ -93,6 +103,7 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		// Assume in prod if fetching from labels for now
 		// TODO handle other environments
 		config.VpcServiceURL = fmt.Sprintf("https://%s.iaas.cloud.ibm.com/v1", nodeRegion)
+		logger.Printf("setting VPC service URL from node labels: %s\n", config.VpcServiceURL)
 	}
 
 	vpcV1, err := vpcv1.NewVpcV1(&vpcv1.VpcV1Options{
@@ -104,12 +115,14 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		return nil, err
 	}
 
-	// If this label exists assume we are in an IKS cluster
-	primarySubnetID, iks := nodeLabels["ibm-provider.kubernetes.io/subnet-id"]
+	// If this label exists assume we are in an IKS or ROKS cluster
+	primarySubnetID, iks := nodeLabels["ibm-provider.kubernetes.io/subnet-id"] // TODO: I don't think this label is present anymore
+
 	if !iks {
 		primarySubnetID, iks = nodeLabels["ibm-cloud.kubernetes.io/subnet-id"]
 	}
 	if iks {
+		logger.Printf("assuming managed cluster (IKS or ROKS, retreiving from node labels)\n")
 		if config.ZoneName == "" {
 			config.ZoneName = nodeLabels["topology.kubernetes.io/zone"]
 		}
@@ -134,6 +147,7 @@ func NewProvider(config *Config) (provider.Provider, error) {
 
 	provider := &ibmcloudVPCProvider{
 		vpc:           vpcV1,
+		cluster:       clusterV2,
 		serviceConfig: config,
 	}
 
@@ -171,6 +185,34 @@ func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourc
 	vpcID = *subnet.VPC.ID
 	resourceGroupID = *subnet.ResourceGroup.ID
 	return
+}
+
+func fetchClusterSG(clusterID string, authenticator core.Authenticator) (securityGroupID string, e error) {
+	clusterv2, err := NewClusterV2Service(&ClusterOptions{authenticator})
+	if err != nil {
+		e = fmt.Errorf("ClusterService error with: %w", err)
+		return
+	}
+
+	securityGroups, _, err := clusterv2.GetSecurityGroups(clusterID)
+	if err != nil {
+		e = err
+		return
+	}
+
+	if len(securityGroups) == 0 {
+		e = fmt.Errorf("no security group found related to cluster")
+		return
+	}
+
+	if len(securityGroups) > 1 {
+		// TODO: Can you have more than 1 cluster type security group?
+		e = fmt.Errorf("there are more than 1 cluster type security group, can't device which one to use")
+		return
+	} else {
+		securityGroupID = securityGroups[0].ID
+		return
+	}
 }
 
 func (p *ibmcloudVPCProvider) getInstancePrototype(instanceName, userData, instanceProfile, imageId string) *vpcv1.InstancePrototype {
