@@ -92,6 +92,7 @@ type Config struct {
 	ClusterID                string
 	Tags                     tags
 	DedicatedHostID          string
+	DedicatedHostGroupID     string
 }
 
 func (c Config) Redact() Config {

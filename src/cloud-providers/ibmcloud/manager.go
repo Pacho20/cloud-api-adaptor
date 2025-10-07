@@ -34,6 +34,7 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 	reg.StringWithEnv(&ibmcloudVPCConfig.VpcID, "vpc-id", "", "IBMCLOUD_VPC_ID", "VPC ID")
 	reg.StringWithEnv(&ibmcloudVPCConfig.ClusterID, "cluster-id", "", "IBMCLOUD_CLUSTER_ID", "Cluster ID")
 	reg.StringWithEnv(&ibmcloudVPCConfig.DedicatedHostID, "dedicated-host-id", "", "IBMCLOUD_DEDICATED_HOST_ID","Dedicated Host ID")
+	reg.StringWithEnv(&ibmcloudVPCConfig.DedicatedHostGroupID, "dedicated-host-group-id", "", "IBMCLOUD_DEDICATED_HOST_GROUP_ID", "Dedicated Host Group ID")
 
 	reg.BoolWithEnv(&ibmcloudVPCConfig.DisableCVM, "disable-cvm", false, "DISABLECVM", "Use non-CVMs for peer pods")
 
