@@ -91,6 +91,7 @@ type Config struct {
 	DisableCVM               bool
 	ClusterID                string
 	Tags                     tags
+	DedicatedHostID          string
 }
 
 func (c Config) Redact() Config {
