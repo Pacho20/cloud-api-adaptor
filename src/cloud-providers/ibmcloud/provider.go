@@ -213,6 +213,10 @@ func (p *ibmcloudVPCProvider) getInstancePrototype(instanceName, userData, insta
 		prototype.PlacementTarget = &vpcv1.InstancePlacementTargetPrototypeDedicatedHostGroupIdentityDedicatedHostGroupIdentityByID{ID: &p.serviceConfig.DedicatedHostID}
 	}
 
+	if p.serviceConfig.DedicatedHostGroupID != "" {
+		prototype.PlacementTarget = &vpcv1.InstancePlacementTargetPrototypeDedicatedHostGroupIdentityDedicatedHostGroupIdentityByID{ID: &p.serviceConfig.DedicatedHostGroupID}
+	}
+
 	return prototype
 }
 
@@ -454,6 +458,10 @@ func (p *ibmcloudVPCProvider) ConfigVerifier() error {
 	images := p.serviceConfig.Images.String()
 	if len(images) == 0 {
 		return fmt.Errorf("image-id is empty")
+	}
+
+	if p.serviceConfig.DedicatedHostGroupID != "" && p.serviceConfig.DedicatedHostID != "" {
+		return fmt.Errorf("both dedicated host group ID and dedicated host ID were provided, specify only one")
 	}
 	return nil
 }
