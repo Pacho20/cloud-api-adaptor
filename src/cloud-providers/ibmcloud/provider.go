@@ -18,11 +18,17 @@ import (
 	provider "github.com/confidential-containers/cloud-api-adaptor/src/cloud-providers"
 	"github.com/confidential-containers/cloud-api-adaptor/src/cloud-providers/util"
 	"github.com/confidential-containers/cloud-api-adaptor/src/cloud-providers/util/cloudinit"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 const (
 	maxRetries    = 10
 	queryInterval = 2
+
+	clusterInfoCMName      = "cluster-info"
+	clusterInfoCMNamespace = "kube-system"
 )
 
 var logger = log.New(log.Writer(), "[adaptor/cloud/ibmcloud] ", log.LstdFlags|log.Lmsgprefix)
@@ -71,6 +77,9 @@ func NewProvider(config *Config) (provider.Provider, error) {
 			logger.Printf("warning, could not find node labels\ndue to: %v\n", err)
 		}
 	}
+
+	clusterID := getClusterID()
+	config.clusterID = clusterID
 
 	nodeRegion, ok := nodeLabels["topology.kubernetes.io/region"]
 	if config.VpcServiceURL == "" && ok {
@@ -132,6 +141,28 @@ func NewProvider(config *Config) (provider.Provider, error) {
 	logger.Printf("ibmcloud-vpc config: %#v", config.Redact())
 
 	return provider, nil
+}
+
+func getClusterID() (clusterID string) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		logger.Printf("failed to get k8s rest config: %v", err)
+		return
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		logger.Printf("failed to create k8s clientset: %v", err)
+		return
+	}
+
+	cm, err := clientset.CoreV1().ConfigMaps(clusterInfoCMNamespace).Get(context.Background(), clusterInfoCMName, metav1.GetOptions{})
+	if err != nil {
+		logger.Printf("could not get %s config map in %s namespace\ndue to: %v\n", clusterInfoCMName, clusterInfoCMNamespace, err)
+		return
+	}
+
+	clusterID = cm.Data["cluster_id"]
+	return
 }
 
 func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourceGroupID string, securityGroupID string, e error) {
