@@ -126,7 +126,7 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		if config.ZoneName == "" {
 			config.ZoneName = nodeLabels["topology.kubernetes.io/zone"]
 		}
-		vpcID, rgID, sgID, err := fetchVPCDetails(vpcV1, primarySubnetID)
+		vpcID, rgID, err := fetchVPCDetails(vpcV1, primarySubnetID)
 		if err != nil {
 			logger.Printf("warning, unable to automatically populate VPC details\ndue to: %v\n", err)
 		} else {
@@ -138,9 +138,6 @@ func NewProvider(config *Config) (provider.Provider, error) {
 			}
 			if config.ResourceGroupID == "" {
 				config.ResourceGroupID = rgID
-			}
-			if config.PrimarySecurityGroupID == "" {
-				config.PrimarySecurityGroupID = sgID
 			}
 		}
 	}
@@ -164,7 +161,7 @@ func NewProvider(config *Config) (provider.Provider, error) {
 	return provider, nil
 }
 
-func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourceGroupID string, securityGroupID string, e error) {
+func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourceGroupID string, e error) {
 	subnet, response, err := vpcV1.GetSubnet(&vpcv1.GetSubnetOptions{
 		ID: &subnetID,
 	})
@@ -173,15 +170,11 @@ func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourc
 		return
 	}
 
-	sg, response, err := vpcV1.GetVPCDefaultSecurityGroup(&vpcv1.GetVPCDefaultSecurityGroupOptions{
-		ID: subnet.VPC.ID,
-	})
 	if err != nil {
 		e = fmt.Errorf("VPC error with:\n %w\nfurther details:\n %v", err, response)
 		return
 	}
 
-	securityGroupID = *sg.ID
 	vpcID = *subnet.VPC.ID
 	resourceGroupID = *subnet.ResourceGroup.ID
 	return
