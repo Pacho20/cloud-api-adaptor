@@ -214,11 +214,7 @@ func (p *ibmcloudVPCProvider) getAttachTagOptions(vpcInstanceCRN *string) (*glob
 		return nil, fmt.Errorf("missing vpc instance crn, can't create attach tag options")
 	}
 
-	var tagNames []string
-	if p.serviceConfig.clusterID != "" {
-		tagNames = append(tagNames, "coco-pod-vm"+":"+p.serviceConfig.clusterID)
-	}
-	tagNames = append(tagNames, p.serviceConfig.Tags...)
+	tagNames := append([]string{"coco-pod-vm:" + p.serviceConfig.ClusterID}, p.serviceConfig.Tags...)
 
 	options := &globaltaggingv1.AttachTagOptions{
 		Resources: []globaltaggingv1.Resource{{ResourceID: vpcInstanceCRN}},
@@ -390,13 +386,15 @@ func (p *ibmcloudVPCProvider) CreateInstance(ctx context.Context, podName, sandb
 	options, err := p.getAttachTagOptions(vpcInstance.CRN)
 	if err != nil {
 		logger.Printf("failed to get attach tag options: %v", err)
-	} else if options != nil {
+		return nil, err
+	} else {
 		_, resp, err = p.globalTagging.AttachTagWithContext(ctx, options)
 		if err != nil {
 			logger.Printf("failed to attach tags: %v and the response is %s", err, resp)
+			return nil, err
 		}
-		logger.Printf("successfully attached tags: %v to instance: %v", options.TagNames, *vpcInstance.CRN)
 	}
+	logger.Printf("successfully attached tags: %v to instance: %v", options.TagNames, *vpcInstance.CRN)
 
 	return instance, nil
 }
