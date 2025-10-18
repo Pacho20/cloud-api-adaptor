@@ -74,6 +74,14 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		return nil, fmt.Errorf("either an IAM API Key or Profile ID needs to be set")
 	}
 
+	if config.ClusterID == "" {
+		clusterID, err := getClusterID()
+		if err != nil {
+			return nil, fmt.Errorf("could not automatically find cluster ID: %w", err)
+		}
+		config.ClusterID = clusterID
+	}
+
 	nodeName, ok := os.LookupEnv("NODE_NAME")
 	var nodeLabels map[string]string
 	if ok {
@@ -83,9 +91,6 @@ func NewProvider(config *Config) (provider.Provider, error) {
 			logger.Printf("warning, could not find node labels\ndue to: %v\n", err)
 		}
 	}
-
-	clusterID := getClusterID()
-	config.clusterID = clusterID
 
 	nodeRegion, ok := nodeLabels["topology.kubernetes.io/region"]
 	if config.VpcServiceURL == "" && ok {
@@ -158,26 +163,27 @@ func NewProvider(config *Config) (provider.Provider, error) {
 	return provider, nil
 }
 
-func getClusterID() (clusterID string) {
+func getClusterID() (string, error) {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		logger.Printf("failed to get k8s rest config: %v", err)
-		return
+		return "", fmt.Errorf("failed to get k8s rest config: %w", err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		logger.Printf("failed to create k8s clientset: %v", err)
-		return
+		return "", fmt.Errorf("failed to create k8s clientset: %w", err)
 	}
 
 	cm, err := clientset.CoreV1().ConfigMaps(clusterInfoCMNamespace).Get(context.Background(), clusterInfoCMName, metav1.GetOptions{})
 	if err != nil {
-		logger.Printf("could not get %s config map in %s namespace\ndue to: %v\n", clusterInfoCMName, clusterInfoCMNamespace, err)
-		return
+		return "", fmt.Errorf("could not get %s config map in %s namespace: %w", clusterInfoCMName, clusterInfoCMNamespace, err)
 	}
 
-	clusterID = cm.Data["cluster_id"]
-	return
+	clusterID, ok := cm.Data["cluster_id"]
+	if !ok {
+		return "", fmt.Errorf("could not find cluster_id key in %s config map in %s namespace", clusterInfoCMName, clusterInfoCMNamespace)
+	}
+
+	return clusterID, nil
 }
 
 func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourceGroupID string, securityGroupID string, e error) {
