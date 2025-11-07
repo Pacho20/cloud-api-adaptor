@@ -385,11 +385,19 @@ func (p *ibmcloudVPCProvider) CreateInstance(ctx context.Context, podName, sandb
 
 	options, err := p.getAttachTagOptions(vpcInstance.CRN)
 	if err != nil {
+		deletionErr := p.DeleteInstance(ctx, instanceID)
+		if deletionErr != nil {
+			logger.Printf("could not cleanup leftover: %v", deletionErr)
+		}
 		return nil, fmt.Errorf("failed to get attach tag options: %w", err)
 	}
 
 	_, resp, err = p.globalTagging.AttachTagWithContext(ctx, options)
 	if err != nil {
+		deletionErr := p.DeleteInstance(ctx, instanceID)
+		if deletionErr != nil {
+			logger.Printf("could not cleanup leftover: %v", deletionErr)
+		}
 		return nil, fmt.Errorf("failed to attach tags: %w and the response is %s", err, resp)
 	}
 	logger.Printf("successfully attached tags: %v to instance: %v", options.TagNames, *vpcInstance.CRN)
