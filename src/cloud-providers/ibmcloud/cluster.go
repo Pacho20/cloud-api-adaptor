@@ -2,9 +2,11 @@ package ibmcloud
 
 import (
 	"context"
+	"fmt"
+	"runtime"
 
 	"github.com/IBM/go-sdk-core/v5/core"
-	common "github.com/IBM/vpc-go-sdk/common"
+	"github.com/google/uuid"
 )
 
 type ClusterV2 struct {
@@ -25,13 +27,13 @@ func NewClusterV2Service(options *ClusterOptions) (service *ClusterV2, err error
 
 	err = core.ValidateStruct(options, "options")
 	if err != nil {
-		err = core.SDKErrorf(err, "", "invalid-global-options", common.GetComponentInfo())
+		err = core.SDKErrorf(err, "", "invalid-global-options", GetComponentInfo())
 		return
 	}
 
 	baseService, err := core.NewBaseService(serviceOptions)
 	if err != nil {
-		err = core.SDKErrorf(err, "", "new-base-error", common.GetComponentInfo())
+		err = core.SDKErrorf(err, "", "new-base-error", GetComponentInfo())
 		return
 	}
 
@@ -54,7 +56,7 @@ func (clusterApi *ClusterV2) GetSecurityGroups(clusterID string) (result []secur
 		nil,
 	)
 	if err != nil {
-		err = core.SDKErrorf(err, "", "url-resolve-error", common.GetComponentInfo())
+		err = core.SDKErrorf(err, "", "url-resolve-error", GetComponentInfo())
 		return
 	}
 
@@ -62,7 +64,7 @@ func (clusterApi *ClusterV2) GetSecurityGroups(clusterID string) (result []secur
 	builder.AddQuery("type", "cluster")
 
 	// Add headers
-	sdkHeaders := common.GetSdkHeaders("kubernetes_service_api", "V1", "GetSecurityGroups")
+	sdkHeaders := GetHeaders("kubernetes_service_api", "V2", "GetSecurityGroups")
 	for headerName, headerValue := range sdkHeaders {
 		builder.AddHeader(headerName, headerValue)
 	}
@@ -72,14 +74,14 @@ func (clusterApi *ClusterV2) GetSecurityGroups(clusterID string) (result []secur
 	// Build the request
 	request, err := builder.Build()
 	if err != nil {
-		err = core.SDKErrorf(err, "", "build-error", common.GetComponentInfo())
+		err = core.SDKErrorf(err, "", "build-error", GetComponentInfo())
 		return
 	}
 
 	var rawResponse []securityGroup
 	response, err = clusterApi.Service.Request(request, &rawResponse)
 	if err != nil {
-		err = core.SDKErrorf(err, "", "http-request-err", common.GetComponentInfo())
+		err = core.SDKErrorf(err, "", "http-request-err", GetComponentInfo())
 		return
 	}
 	if rawResponse != nil {
@@ -97,4 +99,43 @@ type securityGroup struct {
 	UserProvided bool   `json:"userProvided"`
 	Shared       bool   `json:"shared"`
 	WorkerPoolID string `json:"workerPoolID"`
+}
+
+const (
+	HEADER_NAME_USER_AGENT = "User-Agent"
+
+	NAME = "cloud-api-adaptor-ibm"
+
+	X_REQUEST_ID = "X-Request-Id"
+
+	VERSION = "0.0.1"
+)
+
+func GetHeaders(serviceName string, serviceVersion string, operationId string) map[string]string {
+	sdkHeaders := make(map[string]string)
+
+	sdkHeaders[HEADER_NAME_USER_AGENT] = GetUserAgentInfo()
+	sdkHeaders[X_REQUEST_ID] = GetNewXRequestID()
+
+	return sdkHeaders
+}
+
+var UserAgent string = fmt.Sprintf("%s-%s %s", NAME, VERSION, GetSystemInfo())
+
+func GetUserAgentInfo() string {
+	return UserAgent
+}
+
+func GetNewXRequestID() string {
+	return uuid.New().String()
+}
+
+var systemInfo = fmt.Sprintf("(arch=%s; os=%s; go.version=%s)", runtime.GOARCH, runtime.GOOS, runtime.Version())
+
+func GetSystemInfo() string {
+	return systemInfo
+}
+
+func GetComponentInfo() *core.ProblemComponent {
+	return core.NewProblemComponent("github.com/confidential-containers/cloud-api-adaptor", VERSION)
 }

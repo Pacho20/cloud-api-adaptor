@@ -87,24 +87,6 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		config.ClusterID = clusterID
 	}
 
-	clusterV2, err := NewClusterV2Service(&ClusterOptions{Authenticator: authenticator})
-	if err != nil {
-		return nil, err
-	}
-
-	cm, err := util.ConfigMap(context.TODO(), clusterInfoCMName, clusterInfoCMNamespace) // TODO: Probably won't have access to namespace
-	if err != nil {
-		logger.Printf("warning, could not find %s config map in %s namespace\ndue to: %v\n", clusterInfoCMName, clusterInfoCMNamespace, err)
-	}
-	clusterID, ok := cm["cluster_id"]
-	if ok {
-		config.ClusterID = clusterID
-
-		if config.PrimarySecurityGroupID == "" {
-			config.PrimarySecurityGroupID = "kube" + "-" + config.ClusterID // TODO: Fetch cluster type SG instead
-		}
-	}
-
 	nodeName, ok := os.LookupEnv("NODE_NAME")
 	var nodeLabels map[string]string
 	if ok {
@@ -165,6 +147,19 @@ func NewProvider(config *Config) (provider.Provider, error) {
 		})
 	if err != nil {
 		return nil, err
+	}
+
+	clusterV2, err := NewClusterV2Service(&ClusterOptions{Authenticator: authenticator})
+	if err != nil {
+		return nil, err
+	}
+
+	if config.PrimarySecurityGroupID != "" {
+		sgID, err := fetchClusterSG(clusterV2, config.ClusterID)
+		if err != nil {
+			return nil, err
+		}
+		config.PrimarySecurityGroupID = sgID
 	}
 
 	provider := &ibmcloudVPCProvider{
@@ -229,6 +224,28 @@ func fetchVPCDetails(vpcV1 *vpcv1.VpcV1, subnetID string) (vpcID string, resourc
 	return
 }
 
+func fetchClusterSG(clusterv2 clusterV2, clusterID string) (securityGroupID string, e error) {
+	securityGroups, response, err := clusterv2.GetSecurityGroups(clusterID)
+	if err != nil {
+		e = fmt.Errorf("cluster error with:\n %w\nfurther details:\n %v", err, response)
+		return
+	}
+
+	if len(securityGroups) == 0 {
+		e = fmt.Errorf("no security group found related to the cluster")
+		return
+	}
+
+	if len(securityGroups) > 1 {
+		// TODO: Can you have more than 1 cluster type security group?
+		e = fmt.Errorf("there are more than 1 cluster type security group, can't device which one to use, please provide the security group in the config")
+		return
+	} else {
+		securityGroupID = securityGroups[0].ID
+		return
+	}
+}
+
 func (p *ibmcloudVPCProvider) getAttachTagOptions(vpcInstanceCRN *string) (*globaltaggingv1.AttachTagOptions, error) {
 	if vpcInstanceCRN == nil {
 		return nil, fmt.Errorf("missing vpc instance crn, can't create attach tag options")
@@ -243,34 +260,6 @@ func (p *ibmcloudVPCProvider) getAttachTagOptions(vpcInstanceCRN *string) (*glob
 	options.SetTagNames(tagNames)
 
 	return options, nil
-}
-
-func fetchClusterSG(clusterID string, authenticator core.Authenticator) (securityGroupID string, e error) {
-	clusterv2, err := NewClusterV2Service(&ClusterOptions{authenticator})
-	if err != nil {
-		e = fmt.Errorf("ClusterService error with: %w", err)
-		return
-	}
-
-	securityGroups, _, err := clusterv2.GetSecurityGroups(clusterID)
-	if err != nil {
-		e = err
-		return
-	}
-
-	if len(securityGroups) == 0 {
-		e = fmt.Errorf("no security group found related to cluster")
-		return
-	}
-
-	if len(securityGroups) > 1 {
-		// TODO: Can you have more than 1 cluster type security group?
-		e = fmt.Errorf("there are more than 1 cluster type security group, can't device which one to use")
-		return
-	} else {
-		securityGroupID = securityGroups[0].ID
-		return
-	}
 }
 
 func (p *ibmcloudVPCProvider) getInstancePrototype(instanceName, userData, instanceProfile, imageId string) *vpcv1.InstancePrototype {
