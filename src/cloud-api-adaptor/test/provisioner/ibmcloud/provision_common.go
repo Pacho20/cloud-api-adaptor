@@ -967,7 +967,7 @@ func (p *IBMCloudProvisioner) GetProperties(ctx context.Context, cfg *envconf.Co
 		"IBMCLOUD_PODVM_INSTANCE_PROFILE_NAME": IBMCloudProps.InstanceProfile,
 		"IBMCLOUD_ZONE":                        IBMCloudProps.Zone,
 		"IBMCLOUD_VPC_SUBNET_ID":               IBMCloudProps.SubnetID,
-		"IBMCLOUD_VPC_SG_ID":                   IBMCloudProps.SecurityGroupID,
+		"IBMCLOUD_SECURITY_GROUP_IDS":          getSecuirtyGroupIDs(),
 		"IBMCLOUD_VPC_ID":                      IBMCloudProps.VpcID,
 		"CRI_RUNTIME_ENDPOINT":                 "/run/cri-runtime/containerd.sock",
 		"IBMCLOUD_API_KEY":                     IBMCloudProps.ApiKey,

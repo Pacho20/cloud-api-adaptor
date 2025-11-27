@@ -168,7 +168,7 @@ ibmcloud() {
         -tags "$(cleanup_spaces "${TAGS}")" \
         -zone-name "${IBMCLOUD_ZONE}" \
         -primary-subnet-id "${IBMCLOUD_VPC_SUBNET_ID}" \
-        -primary-security-group-id "${IBMCLOUD_VPC_SG_ID}" \
+        -security-group-ids "$(cleanup_spaces "${IBMCLOUD_SECURITY_GROUP_IDS}")" \
         -vpc-id "${IBMCLOUD_VPC_ID}" \
         -cluster-id "${IBMCLOUD_CLUSTER_ID}" \
         ${optionals}

@@ -30,7 +30,6 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 	flags.StringVar(&ibmcloudVPCConfig.ZoneName, "zone-name", "", "Zone name")
 	flags.Var(&ibmcloudVPCConfig.Images, "image-id", "List of Image IDs, comma separated")
 	flags.StringVar(&ibmcloudVPCConfig.PrimarySubnetID, "primary-subnet-id", "", "Primary subnet ID")
-	flags.StringVar(&ibmcloudVPCConfig.PrimarySecurityGroupID, "primary-security-group-id", "", "Primary security group ID")
 	flags.StringVar(&ibmcloudVPCConfig.SecondarySubnetID, "secondary-subnet-id", "", "Secondary subnet ID")
 	flags.StringVar(&ibmcloudVPCConfig.SecondarySecurityGroupID, "secondary-security-group-id", "", "Secondary security group ID")
 	flags.StringVar(&ibmcloudVPCConfig.KeyID, "key-id", "", "SSH Key ID")
@@ -38,6 +37,7 @@ func (_ *Manager) ParseCmd(flags *flag.FlagSet) {
 	flags.BoolVar(&ibmcloudVPCConfig.DisableCVM, "disable-cvm", false, "Use non-CVMs for peer pods")
 	flags.StringVar(&ibmcloudVPCConfig.ClusterID, "cluster-id", "", "Cluster ID")
 	flags.Var(&ibmcloudVPCConfig.Tags, "tags", "List of tags to attach to the Pod VMs, comma separated")
+	flags.Var(&ibmcloudVPCConfig.SecurityGroupIds, "security-group-ids", "Security Group Ids to be used for the Pod VM, comma separated")
 
 }
 
@@ -52,7 +52,6 @@ func (_ *Manager) LoadEnv() {
 	provider.DefaultToEnv(&ibmcloudVPCConfig.ProfileName, "IBMCLOUD_PODVM_INSTANCE_PROFILE_NAME", "")
 	provider.DefaultToEnv(&ibmcloudVPCConfig.ZoneName, "IBMCLOUD_ZONE", "")
 	provider.DefaultToEnv(&ibmcloudVPCConfig.PrimarySubnetID, "IBMCLOUD_VPC_SUBNET_ID", "")
-	provider.DefaultToEnv(&ibmcloudVPCConfig.PrimarySecurityGroupID, "IBMCLOUD_VPC_SG_ID", "")
 	provider.DefaultToEnv(&ibmcloudVPCConfig.KeyID, "IBMCLOUD_SSH_KEY_ID", "")
 	provider.DefaultToEnv(&ibmcloudVPCConfig.VpcID, "IBMCLOUD_VPC_ID", "")
 	provider.DefaultToEnv(&ibmcloudVPCConfig.ClusterID, "IBMCLOUD_CLUSTER_ID", "")

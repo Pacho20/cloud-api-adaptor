@@ -28,7 +28,7 @@ type IBMCloudProperties struct {
 	CosApiKey         string
 	CosInstanceID     string
 	CosServiceURL     string
-	SecurityGroupID   string
+	SecurityGroupIDs   []string
 	IamServiceURL     string
 	IksServiceURL     string
 	InitData          string
@@ -97,7 +97,7 @@ func InitIBMCloudProperties(properties map[string]string) error {
 		Zone:              properties["ZONE"],
 		SshKeyID:          properties["SSH_KEY_ID"],
 		SubnetID:          properties["VPC_SUBNET_ID"],
-		SecurityGroupID:   properties["VPC_SECURITY_GROUP_ID"],
+		SecurityGroupIDs:   properties["VPC_SECURITY_GROUP_ID"],
 		VpcID:             properties["VPC_ID"],
 		TunnelType:        properties["TUNNEL_TYPE"],
 		VxlanPort:         properties["VXLAN_PORT"],
